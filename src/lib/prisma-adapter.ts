@@ -1,6 +1,6 @@
 // src/lib/prisma-adapter.ts
 import { PrismaClient } from "@prisma/client"
-import { Adapter, AdapterUser, AdapterAccount } from "next-auth/adapters"
+import { Adapter, AdapterUser, AdapterAccount, AdapterSession } from "next-auth/adapters"
 
 export function PrismaAdapter(prisma: PrismaClient): Adapter {
   return {
@@ -162,17 +162,19 @@ export function PrismaAdapter(prisma: PrismaClient): Adapter {
       }
     },
 
-    updateSession: async (data: { sessionToken: string; expires: Date }) => {
-      const session = await prisma.session.update({
-        where: { sessionToken: data.sessionToken },
+    updateSession: async (session: Partial<AdapterSession> & Pick<AdapterSession, "sessionToken">) => {
+      if (!session.expires) return null
+      
+      const updatedSession = await prisma.session.update({
+        where: { sessionToken: session.sessionToken },
         data: {
-          expires: data.expires,
+          expires: session.expires,
         },
       })
       return {
-        sessionToken: session.sessionToken,
-        userId: session.userId,
-        expires: session.expires,
+        sessionToken: updatedSession.sessionToken,
+        userId: updatedSession.userId,
+        expires: updatedSession.expires,
       }
     },
 

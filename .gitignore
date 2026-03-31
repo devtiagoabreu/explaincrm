@@ -2,6 +2,8 @@
 
 # config
 exemple/client_secret_api_key.json
+api_systextil_data.md
+
 # dependencies
 /node_modules
 /.pnp

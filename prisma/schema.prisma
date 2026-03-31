@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ============================================
@@ -514,3 +515,4 @@ model Integration {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 }
+

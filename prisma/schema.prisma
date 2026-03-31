@@ -1,0 +1,516 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  ADMIN
+  MANAGER
+  COLLABORATOR
+  VIEWER
+}
+
+enum CategoryType {
+  ORGANIZATION
+  PERSON
+}
+
+enum DealStatus {
+  ONGOING
+  WON
+  LOST
+}
+
+enum MovementEvent {
+  stage_changed
+  status_changed
+  deal_created
+}
+
+enum TaskType {
+  VISITA
+  REUNIAO
+  LIGACAO
+  EMAIL
+  PROPOSTA
+  WHATSAPP
+}
+
+enum TriggerType {
+  deal_stage_reached
+  deal_added
+  person_added
+  organization_added
+  task_finished
+}
+
+enum ActionType {
+  send_whatsapp
+  schedule_task
+  send_email
+  create_deal
+}
+
+enum IntegrationType {
+  GOOGLE_DRIVE
+  GOOGLE_CALENDAR
+  ERP_SYSTEXTIL
+}
+
+// ============================================
+// USERS & GROUPS
+// ============================================
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  googleId        String?   @unique
+  avatar          String?
+  active          Boolean   @default(true)
+  role            Role      @default(COLLABORATOR)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  organizationsAuthored   Organization[] @relation("OrganizationAuthor")
+  organizationsOwned      Organization[] @relation("OwnerUser")
+  peopleAuthored          Person[]       @relation("PersonAuthor")
+  peopleOwned             Person[]       @relation("OwnerUser")
+  dealsAuthored           Deal[]         @relation("DealAuthor")
+  dealsOwned              Deal[]         @relation("OwnerUser")
+  tasksCreated            Task[]         @relation("CreatedBy")
+  tasksFinished           Task[]         @relation("FinishedBy")
+  tasksAssigned           Task[]         @relation("AssignedUser")
+  groups                  Group[]
+  allowedOrganizations    Organization[] @relation("AllowedOrganizations")
+  allowedPeople           Person[]       @relation("AllowedPeople")
+  allowedDeals            Deal[]         @relation("AllowedDeals")
+  movements               DealMovement[]
+  
+  settings                Json?         @default("{}")
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  privileges  Json
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================
+// CONFIGURATIONS
+// ============================================
+
+model Category {
+  id          Int            @id @default(autoincrement())
+  name        String         @unique
+  type        CategoryType
+  organizations Organization[]
+  people      Person[]
+  createdAt   DateTime       @default(now())
+}
+
+model Sector {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  organizations Organization[]
+  createdAt     DateTime       @default(now())
+}
+
+model LeadOrigin {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  organizations Organization[]
+  people        Person[]
+  createdAt     DateTime       @default(now())
+}
+
+model LossReason {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  deals       Deal[]
+  createdAt   DateTime  @default(now())
+}
+
+model Metric {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  tasks       Task[]    @relation("TaskMetrics")
+  createdAt   DateTime  @default(now())
+}
+
+// ============================================
+// ORGANIZATIONS (EMPRESAS)
+// ============================================
+
+model Organization {
+  id              Int            @id @default(autoincrement())
+  name            String
+  legalName       String?
+  cnpj            String?        @unique
+  description     String?
+  logo            String?
+  website         String?
+  ranking         Int            @default(0)
+  
+  // Contact
+  email           String?
+  workPhone       String?
+  mobilePhone     String?
+  faxPhone        String?
+  whatsapp        String?
+  
+  // Social
+  facebook        String?
+  twitter         String?
+  instagram       String?
+  linkedIn        String?
+  skype           String?
+  
+  // Address
+  postalCode      String?
+  country         String?
+  district        String?
+  state           String?
+  streetName      String?
+  streetNumber    String?
+  additionalInfo  String?
+  city            String?
+  
+  // Classifications
+  categoryId      Int?
+  category        Category?      @relation(fields: [categoryId], references: [id])
+  sectorId        Int?
+  sector          Sector?        @relation(fields: [sectorId], references: [id])
+  leadOriginId    Int?
+  leadOrigin      LeadOrigin?    @relation(fields: [leadOriginId], references: [id])
+  
+  // Products
+  products        Product[]      @relation("OrganizationProducts")
+  
+  // Ownership & Permissions
+  authorId        String?
+  author          User?          @relation("OrganizationAuthor", fields: [authorId], references: [id])
+  ownerUserId     String?
+  ownerUser       User?          @relation("OwnerUser", fields: [ownerUserId], references: [id])
+  allowedUsers    User[]         @relation("AllowedOrganizations")
+  allowToAllUsers Boolean        @default(true)
+  
+  // Custom Fields
+  customFields    Json?          @default("{}")
+  
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  // Relations
+  people          Person[]
+  deals           Deal[]
+  tasks           Task[]
+  
+  // Metadata
+  webUrl          String?        @map("_webUrl")
+  
+  @@map("organizations")
+}
+
+// ============================================
+// PEOPLE (PESSOAS)
+// ============================================
+
+model Person {
+  id              Int            @id @default(autoincrement())
+  name            String
+  cpf             String?        @unique
+  role            String?
+  ranking         Int            @default(0)
+  description     String?
+  birthday        DateTime?
+  avatar          String?
+  
+  // Contact
+  email           String?
+  workPhone       String?
+  mobilePhone     String?
+  faxPhone        String?
+  whatsapp        String?
+  
+  // Social
+  facebook        String?
+  twitter         String?
+  instagram       String?
+  linkedIn        String?
+  skype           String?
+  
+  // Address
+  postalCode      String?
+  country         String?
+  district        String?
+  state           String?
+  streetName      String?
+  streetNumber    String?
+  additionalInfo  String?
+  city            String?
+  
+  // Relations
+  organizationId  Int?
+  organization    Organization?   @relation(fields: [organizationId], references: [id])
+  
+  // Classifications
+  categoryId      Int?
+  category        Category?       @relation(fields: [categoryId], references: [id])
+  leadOriginId    Int?
+  leadOrigin      LeadOrigin?     @relation(fields: [leadOriginId], references: [id])
+  
+  // Products
+  products        Product[]       @relation("PersonProducts")
+  
+  // Ownership & Permissions
+  authorId        String?
+  author          User?           @relation("PersonAuthor", fields: [authorId], references: [id])
+  ownerUserId     String?
+  ownerUser       User?           @relation("OwnerUser", fields: [ownerUserId], references: [id])
+  allowedUsers    User[]          @relation("AllowedPeople")
+  allowToAllUsers Boolean         @default(true)
+  
+  // Custom Fields
+  customFields    Json?           @default("{}")
+  
+  // Timestamps
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  // Relations
+  deals           Deal[]
+  tasks           Task[]
+  
+  // Metadata
+  webUrl          String?         @map("_webUrl")
+  
+  @@map("people")
+}
+
+// ============================================
+// PRODUCTS
+// ============================================
+
+model Product {
+  id              Int              @id @default(autoincrement())
+  name            String
+  code            String?          @unique
+  price           Float?           @default(0)
+  active          Boolean          @default(true)
+  categoryId      Int?
+  category        ProductCategory? @relation(fields: [categoryId], references: [id])
+  
+  // Relations
+  organizations   Organization[]   @relation("OrganizationProducts")
+  people          Person[]         @relation("PersonProducts")
+  deals           DealProduct[]
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ProductCategory {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  products  Product[]
+}
+
+// ============================================
+// FUNNELS & STAGES
+// ============================================
+
+model Funnel {
+  id          Int       @id @default(autoincrement())
+  name        String
+  acronym     String    @unique
+  stages      Stage[]
+  deals       Deal[]
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Stage {
+  id              Int       @id @default(autoincrement())
+  name            String
+  order           Int
+  funnelId        Int
+  funnel          Funnel    @relation(fields: [funnelId], references: [id])
+  deals           Deal[]
+  requiredFields  Json?     @default("[]")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ============================================
+// DEALS (NEGÓCIOS)
+// ============================================
+
+model Deal {
+  id              Int            @id @default(autoincrement())
+  title           String
+  description     String?
+  value           Float?         @default(0)
+  ranking         Int            @default(0)
+  
+  // Dates
+  startTime       DateTime?      @default(now())
+  endTime         DateTime?
+  wonAt           DateTime?
+  lostAt          DateTime?
+  
+  // Status
+  status          DealStatus     @default(ONGOING)
+  lossReasonId    Int?
+  lossReason      LossReason?    @relation(fields: [lossReasonId], references: [id])
+  
+  // Funnel & Stage
+  funnelId        Int?
+  funnel          Funnel?        @relation(fields: [funnelId], references: [id])
+  stageId         Int?
+  stage           Stage?         @relation(fields: [stageId], references: [id])
+  stageOrder      Int?
+  
+  // Relations
+  organizationId  Int?
+  organization    Organization?  @relation(fields: [organizationId], references: [id])
+  personId        Int?
+  person          Person?        @relation(fields: [personId], references: [id])
+  
+  // Products
+  products        DealProduct[]
+  
+  // Ownership & Permissions
+  authorId        String?
+  author          User?          @relation("DealAuthor", fields: [authorId], references: [id])
+  ownerUserId     String?
+  ownerUser       User?          @relation("OwnerUser", fields: [ownerUserId], references: [id])
+  allowedUsers    User[]         @relation("AllowedDeals")
+  allowToAllUsers Boolean        @default(true)
+  
+  // Custom Fields
+  customFields    Json?          @default("{}")
+  
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  // Relations
+  tasks           Task[]
+  movements       DealMovement[]
+  
+  // Metadata
+  webUrl          String?        @map("_webUrl")
+  email           String?        @map("_email")
+  
+  @@map("deals")
+}
+
+model DealProduct {
+  id          Int       @id @default(autoincrement())
+  dealId      Int
+  deal        Deal      @relation(fields: [dealId], references: [id])
+  productId   Int
+  product     Product   @relation(fields: [productId], references: [id])
+  quantity    Float     @default(1)
+  unitPrice   Float
+  discount    Float     @default(0)
+  total       Float     @default(0)
+  createdAt   DateTime  @default(now())
+}
+
+model DealMovement {
+  id          Int            @id @default(autoincrement())
+  dealId      Int
+  deal        Deal           @relation(fields: [dealId], references: [id])
+  eventType   MovementEvent
+  oldStageId  Int?
+  newStageId  Int?
+  oldStatus   DealStatus?
+  newStatus   DealStatus?
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id])
+  createdAt   DateTime       @default(now())
+}
+
+// ============================================
+// TASKS (TAREFAS)
+// ============================================
+
+model Task {
+  id              Int          @id @default(autoincrement())
+  text            String
+  type            TaskType
+  dueDate         DateTime?
+  finishedAt      DateTime?
+  
+  // Users
+  userId          String?
+  user            User?        @relation("CreatedBy", fields: [userId], references: [id])
+  assignedUsers   User[]       @relation("AssignedUser")
+  finishedById    String?
+  finishedBy      User?        @relation("FinishedBy", fields: [finishedById], references: [id])
+  
+  // Relations
+  organizationId  Int?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  personId        Int?
+  person          Person?       @relation(fields: [personId], references: [id])
+  dealId          Int?
+  deal            Deal?         @relation(fields: [dealId], references: [id])
+  
+  // Metrics
+  metrics         Metric[]      @relation("TaskMetrics")
+  
+  // Timestamps
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Metadata
+  webUrl          String?       @map("_webUrl")
+  
+  @@map("tasks")
+}
+
+// ============================================
+// AUTOMATIONS
+// ============================================
+
+model Automation {
+  id            String       @id @default(cuid())
+  name          String
+  active        Boolean      @default(true)
+  trigger       TriggerType
+  triggerConfig Json
+  action        ActionType
+  actionConfig  Json
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+// ============================================
+// INTEGRATIONS
+// ============================================
+
+model Integration {
+  id          String           @id @default(cuid())
+  type        IntegrationType
+  config      Json
+  active      Boolean          @default(false)
+  lastSync    DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}

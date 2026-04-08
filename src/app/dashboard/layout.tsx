@@ -1,4 +1,4 @@
-// src/app/(dashboard)/layout.tsx
+// src/app/dashboard/layout.tsx
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Topbar } from "@/components/layout/Topbar"
 
